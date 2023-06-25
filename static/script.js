@@ -1,15 +1,24 @@
 document.addEventListener('DOMContentLoaded', function() {
   var videoElement = document.getElementById('videoElement');
+  var startButton = document.getElementById('startButton');
 
-  // Request camera permission
-  navigator.mediaDevices.getUserMedia({ video: true })
-    .then(function(stream) {
-      videoElement.srcObject = stream;
-      startDetection();
-    })
-    .catch(function(error) {
-      console.error('Error accessing the webcam:', error);
-    });
+  // Add click event listener to start button
+  startButton.addEventListener('click', function() {
+    startCamera();
+  });
+
+  function startCamera() {
+    // Request camera permission
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(function(stream) {
+        videoElement.srcObject = stream;
+        startDetection();
+        startButton.style.display = 'none'; // Hide the start button
+      })
+      .catch(function(error) {
+        console.error('Error accessing the webcam:', error);
+      });
+  }
 
   function startDetection() {
     var canvas = document.getElementById('canvas');
