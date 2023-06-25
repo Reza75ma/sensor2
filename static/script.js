@@ -1,13 +1,33 @@
 document.addEventListener('DOMContentLoaded', function() {
   var videoElement = document.getElementById('videoElement');
+  var startButton = document.getElementById('startButton'); // Add a button element to your HTML with id="startButton"
+
+  // Add click event listener to the start button
+  startButton.addEventListener('click', function() {
+    // Request camera permission
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(function(stream) {
+          videoElement.srcObject = stream;
+          startButton.style.display = 'none'; // Hide the start button
+          startDetection();
+        })
+        .catch(function(error) {
+          console.error('Error accessing the webcam:', error);
+        });
+    } else {
+      console.error('getUserMedia is not supported by this browser.');
+    }
+  });
 
   function startDetection() {
     var canvas = document.getElementById('canvas');
     var context = canvas.getContext('2d');
 
-    // Dynamically set canvas size based on the screen dimensions
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    videoElement.addEventListener('loadedmetadata', function() {
+      canvas.width = videoElement.videoWidth;
+      canvas.height = videoElement.videoHeight;
+    });
 
     function processFrame() {
       context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
@@ -40,22 +60,5 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     processFrame();
-  }
-
-  // Check if getUserMedia is supported and wait for user interaction
-  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-    document.addEventListener('click', function() {
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(function(stream) {
-          videoElement.srcObject = stream;
-          videoElement.play(); // Start playing the video
-          startDetection();
-        })
-        .catch(function(error) {
-          console.error('Error accessing the webcam:', error);
-        });
-    });
-  } else {
-    console.error('getUserMedia is not supported by this browser.');
   }
 });
