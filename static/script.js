@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function startDetection() {
     var canvas = document.getElementById('canvas');
-    var context = canvas.getContext('2d');
+    var context = canvas.getContext('2d', { willReadFrequently: true });
     var circleDetected = false;
 
     videoElement.addEventListener('loadedmetadata', function() {
