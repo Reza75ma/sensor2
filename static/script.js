@@ -1,24 +1,15 @@
 document.addEventListener('DOMContentLoaded', function() {
   var videoElement = document.getElementById('videoElement');
-  var startButton = document.getElementById('startButton'); // Add a button element to your HTML with id="startButton"
 
-  // Add click event listener to the start button
-  startButton.addEventListener('click', function() {
-    // Request camera permission
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(function(stream) {
-          videoElement.srcObject = stream;
-          startButton.style.display = 'none'; // Hide the start button
-          startDetection();
-        })
-        .catch(function(error) {
-          console.error('Error accessing the webcam:', error);
-        });
-    } else {
-      console.error('getUserMedia is not supported by this browser.');
-    }
-  });
+  // Request camera permission
+  navigator.mediaDevices.getUserMedia({ video: true })
+    .then(function(stream) {
+      videoElement.srcObject = stream;
+      startDetection();
+    })
+    .catch(function(error) {
+      console.error('Error accessing the webcam:', error);
+    });
 
   function startDetection() {
     var canvas = document.getElementById('canvas');
