@@ -30,21 +30,22 @@ document.addEventListener('DOMContentLoaded', function() {
       cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
 
       var circles = new cv.Mat();
-      cv.HoughCircles(gray, circles, cv.HOUGH_GRADIENT, 1, 100, 50, 30, 10, 100);
+      cv.HoughCircles(gray, circles, cv.HOUGH_GRADIENT, 1.2, 100, 100, 40, 20, 150);
 
       if (circles.cols > 0) {
-        for (var i = 0; i < circles.cols; ++i) {
-          var circle = circles.data32F;
-          var x = circle[i * 3];
-          var y = circle[i * 3 + 1];
-          var radius = circle[i * 3 + 2];
+        var circle = circles.data32F;
+        var x = circle[0];
+        var y = circle[1];
+        var radius = circle[2];
 
-          context.beginPath();
-          context.arc(x, y, radius, 0, 2 * Math.PI);
-          context.lineWidth = 2;
-          context.strokeStyle = 'red';
-          context.stroke();
-        }
+        context.beginPath();
+        context.arc(x, y, radius, 0, 2 * Math.PI);
+        context.lineWidth = 2;
+        context.strokeStyle = 'red';
+        context.stroke();
+
+        // Break the loop after detecting the first circle
+        return;
       }
 
       gray.delete();
