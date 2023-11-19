@@ -13,12 +13,12 @@
             height: 100vh;
             margin: 0;
         }
-        #camera-feed {
+        #camera-feed, #captured-photo {
             width: 100%;
             max-width: 640px; /* adjust the max-width as needed */
             border: 2px solid red; /* square border color */
         }
-        #capture-button, #switch-camera-button, #download-button {
+        #download-button {
             margin-top: 20px;
             padding: 10px;
             background-color: #4CAF50;
@@ -26,35 +26,37 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            display: none;
         }
     </style>
 </head>
 <body>
     <canvas id="camera-feed"></canvas>
+    <canvas id="captured-photo" style="display:none;"></canvas>
     <button id="capture-button" onclick="capturePhoto()">Take Photo</button>
-    <button id="switch-camera-button" onclick="switchCamera()">Switch Camera</button>
+    <button id="switch-camera-button" onclick="switchCamera()" style="display:none;">Switch Camera</button>
     <button id="download-button" onclick="downloadPhoto()" disabled>Download Photo</button>
 
     <script>
         const videoCanvas = document.getElementById('camera-feed');
+        const photoCanvas = document.getElementById('captured-photo');
         const videoContext = videoCanvas.getContext('2d');
+        const photoContext = photoCanvas.getContext('2d');
         let videoStream;
         let capturedFrameBlob;
 
         // Access the camera and display the video feed
         async function startCamera() {
             try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                const facingMode = videoDevices.length > 1 ? 'user' : 'environment';
-
-                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode } });
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
                 
                 const videoElement = document.createElement('video');
                 videoElement.srcObject = videoStream;
                 videoElement.addEventListener('loadedmetadata', () => {
                     videoCanvas.width = videoElement.videoWidth;
                     videoCanvas.height = videoElement.videoHeight;
+                    photoCanvas.width = videoElement.videoWidth;
+                    photoCanvas.height = videoElement.videoHeight;
                     drawVideoFrame(videoElement, videoContext);
                 });
                 videoElement.play();
@@ -84,18 +86,19 @@
         // Function to capture a photo
         async function capturePhoto() {
             if (videoStream) {
-                // Capture the current frame from the video feed
-                const capturedFrame = document.createElement('canvas');
-                capturedFrame.width = videoCanvas.width;
-                capturedFrame.height = videoCanvas.height;
-                const capturedFrameContext = capturedFrame.getContext('2d');
-                capturedFrameContext.drawImage(videoCanvas, 0, 0, videoCanvas.width, videoCanvas.height);
+                // Pause the video feed
+                videoStream.getTracks().forEach(track => track.stop());
 
-                // Convert the captured frame to a Blob with JPG format
-                capturedFrameBlob = await new Promise(resolve => capturedFrame.toBlob(resolve, 'image/jpeg'));
+                // Draw the captured frame on the photo canvas
+                photoContext.drawImage(videoCanvas, 0, 0, videoCanvas.width, videoCanvas.height);
+                capturedFrameBlob = await new Promise(resolve => photoCanvas.toBlob(resolve, 'image/jpeg'));
 
-                // Enable the download button
+                // Display the captured photo and enable the download button
+                videoCanvas.style.display = 'none';
+                photoCanvas.style.display = 'block';
                 document.getElementById('download-button').disabled = false;
+                document.getElementById('capture-button').style.display = 'none';
+                document.getElementById('switch-camera-button').style.display = 'none';
             }
         }
 
