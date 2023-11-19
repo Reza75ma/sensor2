@@ -15,7 +15,7 @@
         }
         #camera-feed, #captured-photo {
             width: 100%;
-            max-width: 1920px; /* adjust the max-width as needed */
+            max-width: 720px; /* adjust the max-width as needed */
             border: 2px solid red; /* square border color */
         }
         #capture-button, #switch-camera-button, #download-button {
@@ -80,7 +80,7 @@
 
             // Draw a square on the canvas
             const squareSizeMM = 90;
-            const squareSizePixels = squareSizeMM * (videoCanvas.width); // Adjust based on max-width
+            const squareSizePixels = squareSizeMM * (videoCanvas.width/720); // Adjust based on max-width
             const squareColor = 'green';
             const x = (videoCanvas.width - squareSizePixels) / 2;
             const y = (videoCanvas.height - squareSizePixels) / 2;
