@@ -109,15 +109,25 @@
             }
         }
 
-        // Function to download the captured photo
-        function downloadPhoto() {
-            if (capturedFrameBlob) {
-                const downloadLink = document.createElement('a');
-                downloadLink.href = URL.createObjectURL(capturedFrameBlob);
-                downloadLink.download = 'captured_photo.jpg';
-                downloadLink.click();
-            }
-        }
+      // Function to download the captured photo
+function downloadPhoto() {
+    if (capturedFrameBlob) {
+        const blobUrl = URL.createObjectURL(capturedFrameBlob);
+
+        // Create a link and trigger a click event to download the photo
+        const downloadLink = document.createElement('a');
+        downloadLink.href = blobUrl;
+        downloadLink.download = 'captured_photo.jpg';
+        downloadLink.style.display = 'none';
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+
+        // Revoke the object URL to free up resources
+        URL.revokeObjectURL(blobUrl);
+    }
+}
+
 
         // Start the camera when the page loads
         document.addEventListener('DOMContentLoaded', startCamera);
