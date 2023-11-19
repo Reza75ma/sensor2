@@ -13,25 +13,15 @@
             height: 100vh;
             margin: 0;
         }
-        #camera-feed, #captured-photo {
+        #camera-feed {
             width: 100%;
             max-width: 640px; /* adjust the max-width as needed */
             border: 2px solid red; /* square border color */
         }
-        #download-button {
+        #capture-button, #switch-camera-button, #download-button {
             margin-top: 20px;
             padding: 10px;
             background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            display: none;
-        }
-        #take-photo-button {
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #008CBA;
             color: white;
             border: none;
             border-radius: 5px;
@@ -41,30 +31,30 @@
 </head>
 <body>
     <canvas id="camera-feed"></canvas>
-    <canvas id="captured-photo" style="display:none;"></canvas>
-    <button id="take-photo-button" onclick="takePhoto()">Take Photo</button>
+    <button id="capture-button" onclick="capturePhoto()">Take Photo</button>
+    <button id="switch-camera-button" onclick="switchCamera()">Switch Camera</button>
     <button id="download-button" onclick="downloadPhoto()" disabled>Download Photo</button>
 
     <script>
         const videoCanvas = document.getElementById('camera-feed');
-        const photoCanvas = document.getElementById('captured-photo');
         const videoContext = videoCanvas.getContext('2d');
-        const photoContext = photoCanvas.getContext('2d');
         let videoStream;
         let capturedFrameBlob;
 
         // Access the camera and display the video feed
         async function startCamera() {
             try {
-                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                const facingMode = videoDevices.length > 1 ? 'user' : 'environment';
 
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode } });
+                
                 const videoElement = document.createElement('video');
                 videoElement.srcObject = videoStream;
                 videoElement.addEventListener('loadedmetadata', () => {
                     videoCanvas.width = videoElement.videoWidth;
                     videoCanvas.height = videoElement.videoHeight;
-                    photoCanvas.width = videoElement.videoWidth;
-                    photoCanvas.height = videoElement.videoHeight;
                     drawVideoFrame(videoElement, videoContext);
                 });
                 videoElement.play();
@@ -91,64 +81,44 @@
             requestAnimationFrame(() => drawVideoFrame(video, context));
         }
 
-        // Function to take a photo
-        function takePhoto() {
+        // Function to capture a photo
+        async function capturePhoto() {
             if (videoStream) {
-                // Pause the video feed
-                videoStream.getTracks().forEach(track => track.stop());
+                // Capture the current frame from the video feed
+                const capturedFrame = document.createElement('canvas');
+                capturedFrame.width = videoCanvas.width;
+                capturedFrame.height = videoCanvas.height;
+                const capturedFrameContext = capturedFrame.getContext('2d');
+                capturedFrameContext.drawImage(videoCanvas, 0, 0, videoCanvas.width, videoCanvas.height);
 
-                // Draw the captured frame on the photo canvas
-                photoContext.drawImage(videoCanvas, 0, 0, videoCanvas.width, videoCanvas.height);
-                capturedFrameBlob = dataURLtoBlob(photoCanvas.toDataURL('image/jpeg'));
+                // Convert the captured frame to a Blob with JPG format
+                capturedFrameBlob = await new Promise(resolve => capturedFrame.toBlob(resolve, 'image/jpeg'));
 
-                // Display the captured photo and enable the download button
-                videoCanvas.style.display = 'none';
-                photoCanvas.style.display = 'block';
-                document.getElementById('take-photo-button').style.display = 'none';
-                document.getElementById('download-button').style.display = 'block';
+                // Enable the download button
+                document.getElementById('download-button').disabled = false;
             }
         }
 
-// Function to download the captured photo
-function downloadPhoto() {
-    if (capturedFrameBlob) {
-        if (window.navigator.msSaveOrOpenBlob) {
-            // For Internet Explorer
-            window.navigator.msSaveOrOpenBlob(capturedFrameBlob, 'captured_photo.jpg');
-        } else {
-            // For other browsers
-            const blobUrl = URL.createObjectURL(capturedFrameBlob);
-
-            // Create a link, set the href, and trigger a click event to download the photo
-            const downloadLink = document.createElement('a');
-            downloadLink.href = blobUrl;
-            downloadLink.download = 'captured_photo.jpg';
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            document.body.removeChild(downloadLink);
-
-            // Revoke the object URL to free up resources
-            URL.revokeObjectURL(blobUrl);
+        // Function to download the captured photo
+        function downloadPhoto() {
+            if (capturedFrameBlob) {
+                const downloadLink = document.createElement('a');
+                downloadLink.href = URL.createObjectURL(capturedFrameBlob);
+                downloadLink.download = 'captured_photo.jpg';
+                downloadLink.click();
+            }
         }
-    }
-}
 
+        // Function to switch between front and back cameras
+        async function switchCamera() {
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                await startCamera();
+            }
+        }
 
         // Start the camera when the page loads
         document.addEventListener('DOMContentLoaded', startCamera);
-
-        // Convert data URL to Blob
-        function dataURLtoBlob(dataURL) {
-            const arr = dataURL.split(',');
-            const mime = arr[0].match(/:(.*?);/)[1];
-            const bstr = atob(arr[1]);
-            let n = bstr.length;
-            const u8arr = new Uint8Array(n);
-            while (n--) {
-                u8arr[n] = bstr.charCodeAt(n);
-            }
-            return new Blob([u8arr], { type: mime });
-        }
     </script>
 </body>
 </html>
