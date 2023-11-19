@@ -4,66 +4,127 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Camera App</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #camera-feed {
+            width: 100%;
+            max-width: 640px; /* adjust the max-width as needed */
+            border: 2px solid red; /* square border color */
+        }
+        #capture-button, #switch-camera-button {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
-    <canvas id="cameraCanvas" width="640" height="480" style="border: 2px solid red;"></canvas>
-    <button id="captureButton">Take Photo</button>
+    <canvas id="camera-feed"></canvas>
+    <button id="capture-button" onclick="capturePhoto()">Take Photo</button>
+    <button id="switch-camera-button" onclick="switchCamera()">Switch Camera</button>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const cameraCanvas = document.getElementById('cameraCanvas');
-            const captureButton = document.getElementById('captureButton');
+        const videoCanvas = document.getElementById('camera-feed');
+        const videoContext = videoCanvas.getContext('2d');
+        let videoStream;
 
-            let videoStream;
-            let context = cameraCanvas.getContext('2d');
+        // Access the camera and display the video feed
+        async function startCamera() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                const facingMode = videoDevices.length > 1 ? 'user' : 'environment';
 
-            // Function to initialize the camera stream
-            function initCamera() {
-                navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: 'environment' // Use the back camera
-                    }
-                })
-                .then(function (stream) {
-                    videoStream = stream;
-                    cameraCanvas.width = stream.getVideoTracks()[0].getSettings().width || 640;
-                    cameraCanvas.height = stream.getVideoTracks()[0].getSettings().height || 480;
-
-                    // Attach the camera stream to the video element
-                    const video = document.createElement('video');
-                    video.srcObject = stream;
-                    video.play();
-
-                    // Draw the camera stream onto the canvas
-                    function draw() {
-                        context.drawImage(video, 0, 0, cameraCanvas.width, cameraCanvas.height);
-                        requestAnimationFrame(draw);
-                    }
-                    draw();
-                })
-                .catch(function (error) {
-                    console.error('Error accessing the camera: ', error);
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode } });
+                
+                const videoElement = document.createElement('video');
+                videoElement.srcObject = videoStream;
+                videoElement.addEventListener('loadedmetadata', () => {
+                    videoCanvas.width = videoElement.videoWidth;
+                    videoCanvas.height = videoElement.videoHeight;
+                    drawVideoFrame(videoElement, videoContext);
                 });
+                videoElement.play();
+            } catch (error) {
+                console.error('Error accessing camera:', error);
             }
+        }
 
-            // Ask for camera permission when the page loads
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                initCamera();
-            } else {
-                console.error('getUserMedia is not supported on this browser');
-            }
+        // Function to draw the video frame on the canvas
+        function drawVideoFrame(video, context) {
+            context.drawImage(video, 0, 0, videoCanvas.width, videoCanvas.height);
 
-            // Function to capture a photo
-            function capture() {
-                if (videoStream) {
-                    context.drawImage(videoStream.getVideoTracks()[0].getSettings().width || 640,
-                        videoStream.getVideoTracks()[0].getSettings().height || 480);
+            // Draw a square on the canvas
+            const squareSizeMM = 90;
+            const squareSizePixels = squareSizeMM * (videoCanvas.width / 640); // Adjust based on max-width
+            const squareColor = 'green';
+            const x = (videoCanvas.width - squareSizePixels) / 2;
+            const y = (videoCanvas.height - squareSizePixels) / 2;
+
+            context.strokeStyle = squareColor;
+            context.lineWidth = 2;
+            context.strokeRect(x, y, squareSizePixels, squareSizePixels);
+
+            requestAnimationFrame(() => drawVideoFrame(video, context));
+        }
+
+        // Function to capture a photo
+        async function capturePhoto() {
+            if (videoStream) {
+                // Capture the current frame from the video feed
+                const capturedFrame = document.createElement('canvas');
+                capturedFrame.width = videoCanvas.width;
+                capturedFrame.height = videoCanvas.height;
+                const capturedFrameContext = capturedFrame.getContext('2d');
+                capturedFrameContext.drawImage(videoCanvas, 0, 0, videoCanvas.width, videoCanvas.height);
+
+                // Convert the captured frame to a Blob with JPG format
+                const blob = await new Promise(resolve => capturedFrame.toBlob(resolve, 'image/jpeg'));
+
+                // Request file system access
+                try {
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: 'captured_photo.jpg',
+                        types: [
+                            {
+                                description: 'JPEG Files',
+                                accept: {
+                                    'image/jpeg': ['.jpg', '.jpeg'],
+                                },
+                            },
+                        ],
+                    });
+
+                    const writable = await handle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                } catch (error) {
+                    console.error('Error saving file:', error);
                 }
             }
+        }
 
-            // Attach the capture function to the button click event
-            captureButton.addEventListener('click', capture);
-        });
+        // Function to switch between front and back cameras
+        async function switchCamera() {
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                await startCamera();
+            }
+        }
+
+        // Start the camera when the page loads
+        document.addEventListener('DOMContentLoaded', startCamera);
     </script>
 </body>
 </html>
