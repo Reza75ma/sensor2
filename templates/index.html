@@ -17,8 +17,9 @@
             width: 100%;
             max-width: 640px; /* adjust the max-width as needed */
             border: 2px solid red; /* square border color */
+            display: none; /* initially hide the captured photo */
         }
-        #download-button {
+        #capture-button {
             margin-top: 20px;
             padding: 10px;
             background-color: #4CAF50;
@@ -26,43 +27,50 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            display: none;
+        }
+        #download-button {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #008CBA;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: none; /* initially hide the download button */
         }
     </style>
 </head>
 <body>
     <canvas id="camera-feed"></canvas>
-    <canvas id="captured-photo" style="display:none;"></canvas>
+    <canvas id="captured-photo"></canvas>
     <button id="capture-button" onclick="capturePhoto()">Take Photo</button>
-    <button id="switch-camera-button" onclick="switchCamera()" style="display:none;">Switch Camera</button>
-    <button id="download-button" onclick="downloadPhoto()" disabled>Download Photo</button>
+    <button id="download-button" onclick="downloadCapturedPhoto()">Download Photo</button>
 
     <script>
         const videoCanvas = document.getElementById('camera-feed');
-        const photoCanvas = document.getElementById('captured-photo');
+        const capturedCanvas = document.getElementById('captured-photo');
         const videoContext = videoCanvas.getContext('2d');
-        const photoContext = photoCanvas.getContext('2d');
-        let videoStream;
-        let capturedFrameBlob;
+        const capturedContext = capturedCanvas.getContext('2d');
+        let isFrontCamera = true;
 
         // Access the camera and display the video feed
-        async function startCamera() {
-            try {
-                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                
-                const videoElement = document.createElement('video');
-                videoElement.srcObject = videoStream;
-                videoElement.addEventListener('loadedmetadata', () => {
-                    videoCanvas.width = videoElement.videoWidth;
-                    videoCanvas.height = videoElement.videoHeight;
-                    photoCanvas.width = videoElement.videoWidth;
-                    photoCanvas.height = videoElement.videoHeight;
-                    drawVideoFrame(videoElement, videoContext);
+        function setupCamera() {
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: isFrontCamera ? 'user' : 'environment' } })
+                .then((stream) => {
+                    const videoElement = document.createElement('video');
+                    videoElement.srcObject = stream;
+                    videoElement.addEventListener('loadedmetadata', () => {
+                        videoCanvas.width = videoElement.videoWidth;
+                        videoCanvas.height = videoElement.videoHeight;
+                        capturedCanvas.width = videoElement.videoWidth;
+                        capturedCanvas.height = videoElement.videoHeight;
+                        drawVideoFrame(videoElement, videoContext);
+                    });
+                    videoElement.play();
+                })
+                .catch((error) => {
+                    console.error('Error accessing camera:', error);
                 });
-                videoElement.play();
-            } catch (error) {
-                console.error('Error accessing camera:', error);
-            }
         }
 
         // Function to draw the video frame on the canvas
@@ -85,43 +93,32 @@
 
         // Function to capture a photo
         async function capturePhoto() {
-            if (videoStream) {
-                // Pause the video feed
-                videoStream.getTracks().forEach(track => track.stop());
+            // Capture the current frame from the video feed
+            capturedContext.drawImage(videoCanvas, 0, 0, videoCanvas.width, videoCanvas.height);
 
-                // Draw the captured frame on the photo canvas
-                photoContext.drawImage(videoCanvas, 0, 0, videoCanvas.width, videoCanvas.height);
-                capturedFrameBlob = await new Promise(resolve => photoCanvas.toBlob(resolve, 'image/jpeg'));
-
-                // Display the captured photo and enable the download button
-                videoCanvas.style.display = 'none';
-                photoCanvas.style.display = 'block';
-                document.getElementById('download-button').disabled = false;
-                document.getElementById('capture-button').style.display = 'none';
-                document.getElementById('switch-camera-button').style.display = 'none';
-            }
+            // Show the captured photo canvas and hide the video feed canvas
+            videoCanvas.style.display = 'none';
+            capturedCanvas.style.display = 'block';
+            document.getElementById('capture-button').style.display = 'none';
+            document.getElementById('download-button').style.display = 'block';
         }
 
         // Function to download the captured photo
-        function downloadPhoto() {
-            if (capturedFrameBlob) {
-                const downloadLink = document.createElement('a');
-                downloadLink.href = URL.createObjectURL(capturedFrameBlob);
-                downloadLink.download = 'captured_photo.jpg';
-                downloadLink.click();
-            }
+        function downloadCapturedPhoto() {
+            const dataUrl = capturedCanvas.toDataURL('image/jpeg');
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = 'captured_photo.jpg';
+            a.click();
         }
 
-        // Function to switch between front and back cameras
-        async function switchCamera() {
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop());
-                await startCamera();
-            }
+        // Switch between front and back cameras
+        function switchCamera() {
+            isFrontCamera = !isFrontCamera;
+            setupCamera();
         }
 
-        // Start the camera when the page loads
-        document.addEventListener('DOMContentLoaded', startCamera);
+        setupCamera();
     </script>
 </body>
 </html>
