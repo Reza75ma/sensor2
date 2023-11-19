@@ -53,15 +53,20 @@
                 const videoDevices = devices.filter(device => device.kind === 'videoinput');
                 const facingMode = 'environment'; // Set to 'environment' for the back camera
 
-                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode } });
-                
+                const constraints = {
+                    video: { facingMode },
+                };
+
+                videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+
                 const videoElement = document.createElement('video');
                 videoElement.srcObject = videoStream;
                 videoElement.addEventListener('loadedmetadata', () => {
-                    videoCanvas.width = videoElement.videoWidth;
-                    videoCanvas.height = videoElement.videoHeight;
-                    capturedPhoto.width = videoElement.videoWidth;
-                    capturedPhoto.height = videoElement.videoHeight;
+                    const { videoWidth, videoHeight } = videoElement;
+                    videoCanvas.width = videoWidth;
+                    videoCanvas.height = videoHeight;
+                    capturedPhoto.width = videoWidth;
+                    capturedPhoto.height = videoHeight;
                     drawVideoFrame(videoElement, videoContext);
                 });
                 videoElement.play();
