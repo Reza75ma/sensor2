@@ -109,19 +109,24 @@
             }
         }
 
- // Function to download the captured photo
-function downloadPhoto() {
+// Function to download the captured photo
+async function downloadPhoto() {
     if (capturedFrameBlob) {
         const blobUrl = URL.createObjectURL(capturedFrameBlob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = 'captured_photo.jpg';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 0);
+
+        try {
+            const data = await fetch(blobUrl).then(response => response.blob());
+            const item = new ClipboardItem({ 'image/jpeg': data });
+            await navigator.clipboard.write([item]);
+            alert('Image copied to clipboard. Paste it in an image editor to save.');
+        } catch (error) {
+            console.error('Error copying to clipboard:', error);
+        } finally {
+            URL.revokeObjectURL(blobUrl);
+        }
     }
 }
+
 
         // Start the camera when the page loads
         document.addEventListener('DOMContentLoaded', startCamera);
