@@ -13,7 +13,12 @@
             height: 100vh;
             margin: 0;
         }
-        #camera-feed, #captured-photo, #capture-button, #switch-camera-button, #download-button {
+        #camera-feed, #captured-photo {
+            width: 100%;
+            max-width: 640px; /* adjust the max-width as needed */
+            border: 2px solid red; /* square border color */
+        }
+        #capture-button, #switch-camera-button, #download-button {
             margin-top: 20px;
             padding: 10px;
             background-color: #4CAF50;
@@ -22,11 +27,14 @@
             border-radius: 5px;
             cursor: pointer;
         }
+        #captured-photo {
+            display: none;
+        }
     </style>
 </head>
 <body>
-    <canvas id="camera-feed" style="display:none;"></canvas>
-    <img id="captured-photo" style="display:none;">
+    <canvas id="camera-feed"></canvas>
+    <img id="captured-photo" alt="Captured Photo">
     <button id="capture-button" onclick="capturePhoto()">Take Photo</button>
     <button id="switch-camera-button" onclick="switchCamera()">Switch Camera</button>
     <button id="download-button" onclick="downloadPhoto()" disabled>Download Photo</button>
@@ -34,8 +42,7 @@
     <script>
         const videoCanvas = document.getElementById('camera-feed');
         const capturedPhoto = document.getElementById('captured-photo');
-        const captureButton = document.getElementById('capture-button');
-        const downloadButton = document.getElementById('download-button');
+        const videoContext = videoCanvas.getContext('2d');
         let videoStream;
         let capturedFrameBlob;
 
@@ -53,12 +60,32 @@
                 videoElement.addEventListener('loadedmetadata', () => {
                     videoCanvas.width = videoElement.videoWidth;
                     videoCanvas.height = videoElement.videoHeight;
-                    captureButton.disabled = false;
+                    capturedPhoto.width = videoElement.videoWidth;
+                    capturedPhoto.height = videoElement.videoHeight;
+                    drawVideoFrame(videoElement, videoContext);
                 });
                 videoElement.play();
             } catch (error) {
                 console.error('Error accessing camera:', error);
             }
+        }
+
+        // Function to draw the video frame on the canvas
+        function drawVideoFrame(video, context) {
+            context.drawImage(video, 0, 0, videoCanvas.width, videoCanvas.height);
+
+            // Draw a square on the canvas
+            const squareSizeMM = 90;
+            const squareSizePixels = squareSizeMM * (videoCanvas.width / 640); // Adjust based on max-width
+            const squareColor = 'green';
+            const x = (videoCanvas.width - squareSizePixels) / 2;
+            const y = (videoCanvas.height - squareSizePixels) / 2;
+
+            context.strokeStyle = squareColor;
+            context.lineWidth = 2;
+            context.strokeRect(x, y, squareSizePixels, squareSizePixels);
+
+            requestAnimationFrame(() => drawVideoFrame(video, context));
         }
 
         // Function to capture a photo
@@ -68,21 +95,15 @@
                 videoStream.getTracks().forEach(track => track.stop());
 
                 // Draw the captured frame on the photo canvas
-                const capturedFrame = document.createElement('canvas');
-                capturedFrame.width = videoCanvas.width;
-                capturedFrame.height = videoCanvas.height;
-                const capturedFrameContext = capturedFrame.getContext('2d');
-                capturedFrameContext.drawImage(videoCanvas, 0, 0, videoCanvas.width, videoCanvas.height);
+                videoCanvas.style.display = 'none';
+                capturedPhoto.style.display = 'block';
+                capturedPhoto.src = videoCanvas.toDataURL('image/jpeg');
 
                 // Convert the captured frame to a Blob with JPG format
-                capturedFrameBlob = await new Promise(resolve => capturedFrame.toBlob(resolve, 'image/jpeg'));
+                capturedFrameBlob = await new Promise(resolve => videoCanvas.toBlob(resolve, 'image/jpeg'));
 
-                // Display the captured photo and enable the download button
-                videoCanvas.style.display = 'none';
-                capturedPhoto.src = URL.createObjectURL(capturedFrameBlob);
-                capturedPhoto.style.display = 'block';
-                captureButton.style.display = 'none';
-                downloadButton.style.display = 'block';
+                // Enable the download button
+                document.getElementById('download-button').disabled = false;
             }
         }
 
