@@ -18,7 +18,7 @@
             max-width: 640px; /* adjust the max-width as needed */
             border: 2px solid red; /* square border color */
         }
-        #capture-button, #switch-camera-button {
+        #capture-button, #switch-camera-button, #download-button {
             margin-top: 20px;
             padding: 10px;
             background-color: #4CAF50;
@@ -33,11 +33,13 @@
     <canvas id="camera-feed"></canvas>
     <button id="capture-button" onclick="capturePhoto()">Take Photo</button>
     <button id="switch-camera-button" onclick="switchCamera()">Switch Camera</button>
+    <button id="download-button" onclick="downloadPhoto()" disabled>Download Photo</button>
 
     <script>
         const videoCanvas = document.getElementById('camera-feed');
         const videoContext = videoCanvas.getContext('2d');
         let videoStream;
+        let capturedFrameBlob;
 
         // Access the camera and display the video feed
         async function startCamera() {
@@ -90,28 +92,20 @@
                 capturedFrameContext.drawImage(videoCanvas, 0, 0, videoCanvas.width, videoCanvas.height);
 
                 // Convert the captured frame to a Blob with JPG format
-                const blob = await new Promise(resolve => capturedFrame.toBlob(resolve, 'image/jpeg'));
+                capturedFrameBlob = await new Promise(resolve => capturedFrame.toBlob(resolve, 'image/jpeg'));
 
-                // Request file system access
-                try {
-                    const handle = await window.showSaveFilePicker({
-                        suggestedName: 'captured_photo.jpg',
-                        types: [
-                            {
-                                description: 'JPEG Files',
-                                accept: {
-                                    'image/jpeg': ['.jpg', '.jpeg'],
-                                },
-                            },
-                        ],
-                    });
+                // Enable the download button
+                document.getElementById('download-button').disabled = false;
+            }
+        }
 
-                    const writable = await handle.createWritable();
-                    await writable.write(blob);
-                    await writable.close();
-                } catch (error) {
-                    console.error('Error saving file:', error);
-                }
+        // Function to download the captured photo
+        function downloadPhoto() {
+            if (capturedFrameBlob) {
+                const downloadLink = document.createElement('a');
+                downloadLink.href = URL.createObjectURL(capturedFrameBlob);
+                downloadLink.download = 'captured_photo.jpg';
+                downloadLink.click();
             }
         }
 
