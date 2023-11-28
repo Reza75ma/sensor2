@@ -13,124 +13,71 @@
             height: 100vh;
             margin: 0;
         }
-        #camera-feed, #captured-photo {
-            width: 100%;
-            max-width: 640px; /* adjust the max-width as needed */
-            border: 2px solid red; /* square border color */
-        }
-        #capture-button, #switch-camera-button, #download-button {
+        #response-box {
             margin-top: 20px;
             padding: 10px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
+            border: 2px solid #4CAF50;
             border-radius: 5px;
-            cursor: pointer;
+            width: 100%;
+            max-width: 640px;
+            box-sizing: border-box;
+            overflow-wrap: break-word;
         }
-        #captured-photo {
-            display: none;
+        #preview-image {
+            max-width: 100%;
+            height: auto;
         }
     </style>
 </head>
 <body>
-    <canvas id="camera-feed"></canvas>
-    <img id="captured-photo" alt="Captured Photo">
-    <button id="capture-button" onclick="capturePhoto()">Take Photo</button>
-    <button id="download-button" onclick="downloadPhoto()" disabled>Download Photo</button>
+
+    <!-- Add an input element for file selection -->
+    <input type="file" id="file-input" accept="image/*">
+
+    <div id="response-box">
+        <h2>Server Response</h2>
+        <img id="preview-image" alt="Server Response">
+    </div>
 
     <script>
-        const videoCanvas = document.getElementById('camera-feed');
-        const capturedPhoto = document.getElementById('captured-photo');
-        const videoContext = videoCanvas.getContext('2d');
-        let videoStream;
-        let capturedFrameBlob;
+        const fileInput = document.getElementById('file-input');
+        const previewImage = document.getElementById('preview-image');
 
-        // Access the camera and display the video feed
-        async function startCamera() {
+        fileInput.addEventListener('change', async () => {
+            const selectedFile = fileInput.files[0];
+
+            if (!selectedFile) {
+                alert('Please select a photo.');
+                return;
+            }
+
+            // Display the selected photo in the preview
+            const imageUrl = URL.createObjectURL(selectedFile);
+            previewImage.src = imageUrl;
+
+            // Send the selected image to the Python server
+            const formData = new FormData();
+            formData.append('file', selectedFile, selectedFile.name);
+
             try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                const facingMode = 'environment'; // Set to 'environment' for the back camera
-
-                const constraints = {
-                    video: { facingMode },
-                };
-
-                videoStream = await navigator.mediaDevices.getUserMedia(constraints);
-
-                const videoElement = document.createElement('video');
-                videoElement.srcObject = videoStream;
-                videoElement.addEventListener('loadedmetadata', () => {
-                    const { videoWidth, videoHeight } = videoElement;
-                    videoCanvas.width = videoWidth;
-                    videoCanvas.height = videoHeight;
-                    capturedPhoto.width = videoWidth;
-                    capturedPhoto.height = videoHeight;
-                    drawVideoFrame(videoElement, videoContext);
+                const response = await fetch('http://172.22.43.187:5000/get_image', {
+                    method: 'POST',
+                    body: formData,
                 });
-                videoElement.play();
+
+                if (response.ok) {
+                    // Handle the response from the server, assuming the server responds with an image
+                    const blob = await response.blob();
+                    const serverResponseImageUrl = URL.createObjectURL(blob);
+                    previewImage.src = serverResponseImageUrl;
+                } else {
+                    const errorResult = await response.text();
+                    alert(errorResult);
+                }
             } catch (error) {
-                console.error('Error accessing camera:', error);
+                alert('Error sending image to the server:', error);
             }
-        }
-
-        // Function to draw the video frame on the canvas
-        function drawVideoFrame(video, context) {
-            context.drawImage(video, 0, 0, videoCanvas.width, videoCanvas.height);
-
-            // Draw a square on the canvas
-            const squareSizeMM = 300;
-            const squareSizePixels = squareSizeMM * (videoCanvas.width/ 640); // Adjust based on max-width
-            const squareColor = 'green';
-            const x = (videoCanvas.width - squareSizePixels) / 2;
-            const y = (videoCanvas.height - squareSizePixels) / 2;
-
-            context.strokeStyle = squareColor;
-            context.lineWidth = 2;
-            context.strokeRect(x, y, squareSizePixels, squareSizePixels);
-
-            requestAnimationFrame(() => drawVideoFrame(video, context));
-        }
-
-        // Function to capture a photo
-        async function capturePhoto() {
-            if (videoStream) {
-                // Pause the video feed
-                videoStream.getTracks().forEach(track => track.stop());
-
-                // Draw the captured frame on the photo canvas
-                videoCanvas.style.display = 'none';
-                capturedPhoto.style.display = 'block';
-                capturedPhoto.src = videoCanvas.toDataURL('image/jpeg');
-
-                // Convert the captured frame to a Blob with JPG format
-                capturedFrameBlob = await new Promise(resolve => videoCanvas.toBlob(resolve, 'image/jpeg'));
-
-                // Enable the download button
-                document.getElementById('download-button').disabled = false;
-            }
-        }
-
-        // Function to download the captured photo
-        function downloadPhoto() {
-            if (capturedFrameBlob) {
-                const downloadLink = document.createElement('a');
-                downloadLink.href = URL.createObjectURL(capturedFrameBlob);
-                downloadLink.download = 'captured_photo.jpg';
-                downloadLink.click();
-            }
-        }
-
-        // Function to switch between front and back cameras
-        async function switchCamera() {
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop());
-                await startCamera();
-            }
-        }
-
-        // Start the camera when the page loads
-        document.addEventListener('DOMContentLoaded', startCamera);
+        });
     </script>
 </body>
 </html>
