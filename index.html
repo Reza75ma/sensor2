@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,23 +14,22 @@
             height: 100vh;
             margin: 0;
         }
-        #camera-feed, #captured-photo {
+
+        #camera-feed {
             width: 100%;
-            max-width: 640px; /* adjust the max-width as needed */
-            border: 2px solid red; /* square border color */
-        }
-        #capture-button, #switch-camera-button, #download-button {
+            max-width: 640px;
+            /* adjust the max-width as needed */
+            border: 2px solid red;
+            /* square border color */
             margin-top: 20px;
-            padding: 10px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
         }
-        #captured-photo {
-            display: none;
+
+        #photo-preview {
+            width: 100%;
+            max-width: 640px;
+            margin-top: 20px;
         }
+
         #response-box {
             margin-top: 20px;
             padding: 10px;
@@ -40,63 +40,68 @@
             box-sizing: border-box;
             overflow-wrap: break-word;
         }
+
+        #capture-button {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
     </style>
 </head>
+
 <body>
     <canvas id="camera-feed"></canvas>
-    <img id="captured-photo" alt="Captured Photo">
     <button id="capture-button" onclick="capturePhoto()">Take Photo</button>
-    <button id="download-button" onclick="downloadPhoto()" disabled>Download Photo</button>
-    <button id="switch-camera-button" onclick="switchCamera()">Switch Camera</button>
+
+    <div id="photo-preview">
+        <h2>Photo Preview</h2>
+        <img id="preview-image" style="max-width: 100%;" alt="Preview">
+    </div>
 
     <div id="response-box">
         <h2>Server Response</h2>
+        <div id="server-response-image-container"></div>
         <p id="server-response"></p>
     </div>
 
     <script>
         const videoCanvas = document.getElementById('camera-feed');
-        const capturedPhoto = document.getElementById('captured-photo');
         const videoContext = videoCanvas.getContext('2d');
-        let videoStream;
-        let capturedFrameBlob;
+        const previewImage = document.getElementById('preview-image');
+        const serverResponseElement = document.getElementById('server-response');
+        const serverResponseImageContainer = document.getElementById('server-response-image-container');
 
-        // Access the camera and display the video feed
-        async function startCamera() {
-            try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                const facingMode = 'environment'; // Set to 'environment' for the back camera
-
-                const constraints = {
-                    video: { facingMode },
-                };
-
-                videoStream = await navigator.mediaDevices.getUserMedia(constraints);
-
+        // Access the back camera and display the video feed
+        navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'environment'
+                }
+            }) // 'environment' specifies the back camera
+            .then((stream) => {
                 const videoElement = document.createElement('video');
-                videoElement.srcObject = videoStream;
+                videoElement.srcObject = stream;
                 videoElement.addEventListener('loadedmetadata', () => {
-                    const { videoWidth, videoHeight } = videoElement;
-                    videoCanvas.width = videoWidth;
-                    videoCanvas.height = videoHeight;
-                    capturedPhoto.width = videoWidth;
-                    capturedPhoto.height = videoHeight;
+                    videoCanvas.width = videoElement.videoWidth;
+                    videoCanvas.height = videoElement.videoHeight;
                     drawVideoFrame(videoElement, videoContext);
                 });
                 videoElement.play();
-            } catch (error) {
+            })
+            .catch((error) => {
                 console.error('Error accessing camera:', error);
-            }
-        }
+            });
 
         // Function to draw the video frame on the canvas
         function drawVideoFrame(video, context) {
             context.drawImage(video, 0, 0, videoCanvas.width, videoCanvas.height);
 
             // Draw a square on the canvas
-            const squareSizeMM = 300;
-            const squareSizePixels = squareSizeMM * (videoCanvas.width/ 640); // Adjust based on max-width
+            const squareSizeMM = 270;
+            const squareSizePixels = squareSizeMM * (videoCanvas.width / 640); // Adjust based on max-width
             const squareColor = 'green';
             const x = (videoCanvas.width - squareSizePixels) / 2;
             const y = (videoCanvas.height - squareSizePixels) / 2;
@@ -108,55 +113,66 @@
             requestAnimationFrame(() => drawVideoFrame(video, context));
         }
 
-        // Function to capture a photo
+        // Function to capture a photo and show preview
         async function capturePhoto() {
-            if (videoStream) {
-                // Pause the video feed
-                videoStream.getTracks().forEach(track => track.stop());
+            // Capture the current frame from the video feed
+            const capturedFrame = document.createElement('canvas');
+            capturedFrame.width = videoCanvas.width;
+            capturedFrame.height = videoCanvas.height;
+            const capturedFrameContext = capturedFrame.getContext('2d');
+            capturedFrameContext.drawImage(videoCanvas, 0, 0, videoCanvas.width, videoCanvas.height);
 
-                // Draw the captured frame on the photo canvas
-                videoCanvas.style.display = 'none';
-                capturedPhoto.style.display = 'block';
-                capturedPhoto.src = videoCanvas.toDataURL('image/jpeg');
+            // Convert the captured frame to a Blob with JPG format
+            const blob = await new Promise(resolve => capturedFrame.toBlob(resolve, 'image/jpeg'));
 
-                // Convert the captured frame to a Blob with JPG format
-                capturedFrameBlob = await new Promise(resolve => videoCanvas.toBlob(resolve, 'image/jpeg'));
+            // Display the captured photo in the preview
+            const imageUrl = URL.createObjectURL(blob);
+            previewImage.src = imageUrl;
 
-                // Enable the download button
-                document.getElementById('download-button').disabled = false;
+            // Send the image to the Python server
+            const formData = new FormData();
+            formData.append('file', blob, 'captured_photo.jpg');
+
+            try {
+                const response = await fetch('https://2355-46-209-219-50.ngrok-free.app/get_image', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (response.ok) {
+                    // Handle the response from the server
+                    const result = await response.json();
+                    serverResponseElement.textContent = JSON.stringify(result);
+
+                    // Display the image received from the server
+                    displayServerImage(result.imageUrl);
+                } else {
+                    const errorResult = await response.text();
+                    alert(errorResult);
+                    alert('Failed to send image to the server');
+                    // console.log('Failed to send image to the server');
+                }
+            } catch (error) {
+                alert('Error sending image to the server:', error);
+                // console.log('Error sending image to the server:', error);
             }
         }
 
-        // Function to download the captured photo
-        function downloadPhoto() {
-            if (capturedFrameBlob) {
-                const downloadLink = document.createElement('a');
-                downloadLink.href = URL.createObjectURL(capturedFrameBlob);
-                downloadLink.download = 'captured_photo.jpg';
-                downloadLink.click();
-            }
-        }
-
-        // Function to switch between front and back cameras
-        async function switchCamera() {
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop());
-                await startCamera();
-            }
-        }
-
-        // Function to display the image received from the server in the preview box
+        // Function to display the image received from the server in the response box
         function displayServerImage(imageUrl) {
-            const responseBox = document.getElementById('response-box');
-            const serverResponseElement = document.getElementById('server-response');
+            // Create an img element and set its source
+            const serverImage = document.createElement('img');
+            serverImage.src = imageUrl;
+            serverImage.style.maxWidth = '100%';
 
-            // Display the image in the response box
-            serverResponseElement.innerHTML = '<img src="' + imageUrl + '" alt="Server Response Image">';
-            responseBox.style.display = 'block';
+            // Clear previous content and append the new image
+            serverResponseImageContainer.innerHTML = '';
+            serverResponseImageContainer.appendChild(serverImage);
+
+            // Optionally, you can also set the server image as the preview image
+            previewImage.src = imageUrl;
         }
-
-        // Start the camera when the page loads
-        document.addEventListener('DOMContentLoaded', startCamera);
     </script>
 </body>
+
 </html>
