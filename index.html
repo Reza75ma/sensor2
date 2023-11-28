@@ -65,8 +65,10 @@
         const previewImage = document.getElementById('preview-image');
         const serverResponseElement = document.getElementById('server-response');
 
-        // Access the camera and display the video feed
-        navigator.mediaDevices.getUserMedia({ video: true })
+        // Access the back camera and display the video feed
+        navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' } // 'environment' specifies the back camera
+        })
             .then((stream) => {
                 const videoElement = document.createElement('video');
                 videoElement.srcObject = stream;
