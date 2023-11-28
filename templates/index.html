@@ -24,21 +24,10 @@
             margin-top: 20px;
         }
 
-        #photo-preview {
+        #get-image-box {
             width: 100%;
             max-width: 640px;
             margin-top: 20px;
-        }
-
-        #response-box {
-            margin-top: 20px;
-            padding: 10px;
-            border: 2px solid #4CAF50;
-            border-radius: 5px;
-            width: 100%;
-            max-width: 640px;
-            box-sizing: border-box;
-            overflow-wrap: break-word;
         }
 
         #capture-button {
@@ -57,23 +46,15 @@
     <canvas id="camera-feed"></canvas>
     <button id="capture-button" onclick="capturePhoto()">Take Photo</button>
 
-    <div id="photo-preview">
-        <h2>Photo Preview</h2>
-        <img id="preview-image" style="max-width: 100%;" alt="Preview">
-    </div>
-
-    <div id="response-box">
-        <h2>Server Response</h2>
-        <div id="server-response-image-container"></div>
-        <p id="server-response"></p>
+    <div id="get-image-box">
+        <h2>Server Response Photo (get_image)</h2>
+        <img id="get-image" style="max-width: 100%;" alt="Server Response Photo">
     </div>
 
     <script>
         const videoCanvas = document.getElementById('camera-feed');
         const videoContext = videoCanvas.getContext('2d');
-        const previewImage = document.getElementById('preview-image');
-        const serverResponseElement = document.getElementById('server-response');
-        const serverResponseImageContainer = document.getElementById('server-response-image-container');
+        const getImage = document.getElementById('get-image');
 
         // Access the back camera and display the video feed
         navigator.mediaDevices.getUserMedia({
@@ -113,7 +94,7 @@
             requestAnimationFrame(() => drawVideoFrame(video, context));
         }
 
-        // Function to capture a photo and show preview
+        // Function to capture a photo and show server response
         async function capturePhoto() {
             // Capture the current frame from the video feed
             const capturedFrame = document.createElement('canvas');
@@ -124,10 +105,6 @@
 
             // Convert the captured frame to a Blob with JPG format
             const blob = await new Promise(resolve => capturedFrame.toBlob(resolve, 'image/jpeg'));
-
-            // Display the captured photo in the preview
-            const imageUrl = URL.createObjectURL(blob);
-            previewImage.src = imageUrl;
 
             // Send the image to the Python server
             const formData = new FormData();
@@ -142,10 +119,9 @@
                 if (response.ok) {
                     // Handle the response from the server
                     const result = await response.json();
-                    serverResponseElement.textContent = JSON.stringify(result);
 
                     // Display the image received from the server
-                    displayServerImage(result.imageUrl);
+                    displayGetImage(result.imageUrl);
                 } else {
                     const errorResult = await response.text();
                     alert(errorResult);
@@ -158,19 +134,10 @@
             }
         }
 
-        // Function to display the image received from the server in the response box
-        function displayServerImage(imageUrl) {
-            // Create an img element and set its source
-            const serverImage = document.createElement('img');
-            serverImage.src = imageUrl;
-            serverImage.style.maxWidth = '100%';
-
-            // Clear previous content and append the new image
-            serverResponseImageContainer.innerHTML = '';
-            serverResponseImageContainer.appendChild(serverImage);
-
-            // Optionally, you can also set the server image as the preview image
-            previewImage.src = imageUrl;
+        // Function to display the image received from the server in the get-image box
+        function displayGetImage(imageUrl) {
+            // Set the source of the get-image element
+            getImage.src = imageUrl;
         }
     </script>
 </body>
