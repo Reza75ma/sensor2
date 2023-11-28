@@ -134,23 +134,41 @@
             formData.append('file', blob, 'captured_photo.jpg');
 
             try {
-                const response = await fetch('http://172.22.43.187:5000/get_image', {
+                const response = await fetch('https://2355-46-209-219-50.ngrok-free.app/get_image', {
                     method: 'POST',
                     body: formData,
                 });
 
                 if (response.ok) {
-                    // Handle the response from the server, assuming the server responds with an image
-                    const blob = await response.blob();
-                    const serverResponseImageUrl = URL.createObjectURL(blob);
-                    previewImage.src = serverResponseImageUrl;
+                    // Handle the response from the server
+                    const result = await response.json();
+                    serverResponseElement.textContent = JSON.stringify(result);
+
+                    // Display the image received from the server
+                    displayServerImage(result.imageUrl);
                 } else {
                     const errorResult = await response.text();
                     alert(errorResult);
+                    alert('Failed to send image to the server');
+                    // console.log('Failed to send image to the server');
                 }
             } catch (error) {
                 alert('Error sending image to the server:', error);
-            }};
+                // console.log('Error sending image to the server:', error);
+            }
+        }
+
+        // Function to display the image received from the server in the response box
+        function displayServerImage(imageUrl) {
+            // Create an img element and set its source
+            const serverImage = document.createElement('img');
+            serverImage.src = imageUrl;
+            serverImage.style.maxWidth = '100%';
+
+            // Clear previous content and append the new image
+            serverResponseImageContainer.innerHTML = '';
+            serverResponseImageContainer.appendChild(serverImage);
+        }
     </script>
 </body>
 
