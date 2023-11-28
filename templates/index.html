@@ -132,6 +132,8 @@
 
                     if (response.ok) {
                         // Handle the response from the server
+                        const processedBlob = await response.blob();
+                        serverResponseImage.src = URL.createObjectURL(processedBlob);
                         responseBox.style.display = 'block';
                     } else {
                         const errorResult = await response.text();
