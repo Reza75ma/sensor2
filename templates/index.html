@@ -56,6 +56,7 @@
 
     <div id="response-box">
         <h2>Server Response</h2>
+        <div id="server-response-image-container"></div>
         <p id="server-response"></p>
     </div>
 
@@ -64,6 +65,7 @@
         const videoContext = videoCanvas.getContext('2d');
         const previewImage = document.getElementById('preview-image');
         const serverResponseElement = document.getElementById('server-response');
+        const serverResponseImageContainer = document.getElementById('server-response-image-container');
 
         // Access the back camera and display the video feed
         navigator.mediaDevices.getUserMedia({
@@ -122,7 +124,6 @@
             formData.append('file', blob, 'captured_photo.jpg');
            
             try {
-              
                 const response = await fetch('https://2355-46-209-219-50.ngrok-free.app/get_image', {
                     method: 'POST',
                     body: formData,
@@ -132,7 +133,9 @@
                     // Handle the response from the server
                     const result = await response.json();
                     serverResponseElement.textContent = JSON.stringify(result);
-                    alert(result);
+                    
+                    // Display the image received from the server
+                    displayServerImage(result.imageUrl);
                 } else {
                     const errorResult = await response.text();
                     alert(errorResult);
@@ -143,6 +146,18 @@
                 alert('Error sending image to the server:', error);
                 // console.log('Error sending image to the server:', error);
             }
+        }
+
+        // Function to display the image received from the server in the response box
+        function displayServerImage(imageUrl) {
+            // Create an img element and set its source
+            const serverImage = document.createElement('img');
+            serverImage.src = imageUrl;
+            serverImage.style.maxWidth = '100%';
+
+            // Clear previous content and append the new image
+            serverResponseImageContainer.innerHTML = '';
+            serverResponseImageContainer.appendChild(serverImage);
         }
     </script>
 </body>
